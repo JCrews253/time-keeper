@@ -76,10 +76,6 @@ async function sendMessage(message: string): Promise<void> {
   }
 }
 
-client.on(Events.MessageCreate, (message) => {
-  // console.log("on message");
-});
-
 client.once(Events.ClientReady, async (readyClient) => {
   console.log(`Ready! Logged in as ${readyClient.user.tag}`);
   channel = await client.channels.fetch(CHANNEL_ID);
