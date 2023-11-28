@@ -1,59 +1,74 @@
 import { CronJob } from "cron";
-import { Channel, Client, Events, GatewayIntentBits } from "discord.js";
-import dotenv from "dotenv";
+import {
+  Channel,
+  Client,
+  Events,
+  GatewayIntentBits,
+  Presence,
+} from "discord.js";
+import * as dotenv from "dotenv";
+import { PrismaClient } from "@prisma/client";
 
 dotenv.config();
 
-interface TimeCard {
-  userId: string;
-  startTime: Date;
-  endTime: Date | null;
-}
-
-let timeCards: TimeCard[] = [];
+const prisma = new PrismaClient();
 const LETHAL_COMPANY_NAME = "Lethal Company";
 const CHANNEL_ID = "293902684354904066";
 let channel: Channel | null;
 
 new CronJob(
   "0 * * * * 0",
-  function () {
-    const timeCardsThisWeek: TimeCard[] = [...timeCards].map((t) => ({
-      userId: t.userId,
-      startTime: t.startTime,
-      endTime: t.endTime ?? new Date(),
-    }));
+  // "0 * * * * *",
+  async function () {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
-    const newTimeCards: TimeCard[] = [...timeCards]
-      .filter((t) => t.endTime === null)
-      .map((t) => ({
-        userId: t.userId,
-        startTime: t.endTime!,
-        endTime: null,
-      }));
-    timeCards = newTimeCards;
-
-    const userIds = Array.from(new Set(timeCardsThisWeek.map((t) => t.userId)));
-
-    const timeReports = userIds.map((userId) => {
-      const userTimeCards = timeCardsThisWeek.filter(
-        (t) => t.userId === userId
-      );
-      const hours = userTimeCards.reduce(
-        (acc, curr) =>
-          acc + (curr.endTime!.getTime() - curr.startTime.getTime()) / 3600000,
-        0
-      );
-
-      return { userId, hours };
+    const thisWeek = await prisma.timeCard.findMany({
+      where: {
+        startTime: {
+          gt: oneWeekAgo,
+        },
+      },
     });
 
+    const now = new Date();
+    const nonEnded = await prisma.timeCard.findMany({
+      where: { endTime: null },
+    });
+    await prisma.timeCard.updateMany({
+      where: { endTime: null },
+      data: { endTime: now },
+    });
+    nonEnded.map(
+      async (t) =>
+        await prisma.timeCard.create({
+          data: { userId: t.userId, startTime: now, endTime: null },
+        })
+    );
+
+    const userIds = Array.from(new Set(thisWeek.map((t) => t.userId)));
+    const timeReports = userIds.map((userId) => {
+      const userTimeCards = thisWeek.filter((t) => t.userId === userId);
+      const hours = userTimeCards.reduce(
+        (acc, curr) =>
+          acc +
+          ((curr.endTime.getTime() ?? Date.now()) - curr.startTime.getTime()) /
+            3600000,
+        0
+      );
+      return { userId, hours };
+    });
     const message = timeReports
       .map(
-        (t) => `<@${t.userId}> worked ${t.hours.toPrecision(1)} this week. \n`
+        (t) =>
+          `<@${t.userId}> worked ${t.hours.toFixed(
+            1
+          )} hours this week. Rank: ${hoursToTitle(t.hours)} \n`
       )
       .join("");
-    sendMessage(message);
+
+    const header = "Last weeks time report: \n";
+    sendMessage(header + message);
   },
   null,
   true,
@@ -71,6 +86,7 @@ const client = new Client({
 async function sendMessage(message: string): Promise<void> {
   if (channel?.isTextBased()) {
     await channel.send(message);
+    // console.log({ message });
   } else {
     console.log("Channel is not text based.");
   }
@@ -81,52 +97,73 @@ client.once(Events.ClientReady, async (readyClient) => {
   channel = await client.channels.fetch(CHANNEL_ID);
 });
 
-client.on(Events.PresenceUpdate, async (oldMember, newMember) => {
-  const currentTimeCard = timeCards.find(
-    (t) => t.userId === newMember.userId && t.endTime === null
-  );
-  const isPlaying = newMember.activities.some(
+client.on(Events.PresenceUpdate, handlePresenceUpdate);
+
+// Log in to Discord with your client's token
+client.login(process.env.token);
+
+async function handlePresenceUpdate(
+  _: Presence,
+  presence: Presence
+): Promise<void> {
+  const currentTimeCard = await prisma.timeCard.findFirst({
+    where: { userId: presence.userId, endTime: null },
+  });
+  const isPlaying = presence.activities.some(
     (a) => a.name === LETHAL_COMPANY_NAME
   );
 
   if (currentTimeCard && !isPlaying) {
-    currentTimeCard.endTime = new Date();
+    await prisma.timeCard.update({
+      where: { id: currentTimeCard.id },
+      data: { endTime: new Date() },
+    });
 
-    const hours =
-      (currentTimeCard.endTime!.getTime() -
-        currentTimeCard.startTime.getTime()) /
-      3600000;
+    const hours = (Date.now() - currentTimeCard.startTime.getTime()) / 3600000;
 
-    let messageEnding = "";
-    if (hours < 2) {
+    let messageEnding: string;
+    if (hours < 1) {
       messageEnding = "Pathetic.";
-    } else if (hours < 4) {
+    } else if (hours < 2) {
       messageEnding = "Nice part time job.";
-    } else if (hours < 6) {
+    } else if (hours < 3) {
       messageEnding = "Congrats on doing your job.";
     } else {
       messageEnding = "See you tomorrow.";
     }
 
     await sendMessage(
-      `${newMember.user} has ended their shift after ${hours.toPrecision(
+      `${presence.user} has ended their shift after ${hours.toFixed(
         1
-      )}. ${messageEnding}`
+      )} hours. ${messageEnding}`
     );
     return;
   }
 
   if (!currentTimeCard && isPlaying) {
-    timeCards.push({
-      userId: newMember.userId,
-      startTime: new Date(),
-      endTime: null,
+    await prisma.timeCard.create({
+      data: {
+        userId: presence.userId,
+        startTime: new Date(),
+        endTime: null,
+      },
     });
 
-    await sendMessage(`${newMember.user} has started their shift.`);
+    await sendMessage(`${presence.user} has started their shift.`);
     return;
   }
-});
+}
 
-// Log in to Discord with your client's token
-client.login(process.env.token);
+function hoursToTitle(hours: number): string {
+  if (hours < 10) {
+    return "Intern";
+  } else if (hours < 20) {
+    return "Part-Time";
+  } else if (hours < 30) {
+    return "Employee";
+  } else if (hours < 40) {
+    return "Leader";
+  } else {
+    return "Boss";
+  }
+}
