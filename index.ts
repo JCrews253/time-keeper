@@ -74,57 +74,57 @@ async function sendMessage(message: string): Promise<void> {
   }
 }
 
+client.on(Events.MessageCreate, (message) => {
+  // console.log("on message");
+});
+
 client.once(Events.ClientReady, async (readyClient) => {
   console.log(`Ready! Logged in as ${readyClient.user.tag}`);
   channel = await client.channels.fetch(CHANNEL_ID);
 });
 
 client.on(Events.PresenceUpdate, async (oldMember, newMember) => {
-  try {
-    const currentTimeCard = timeCards.find(
-      (t) => t.userId === newMember.userId && t.endTime === null
-    );
-    const isPlaying = newMember.activities.some(
-      (a) => a.name === LETHAL_COMPANY_NAME
-    );
+  const currentTimeCard = timeCards.find(
+    (t) => t.userId === newMember.userId && t.endTime === null
+  );
+  const isPlaying = newMember.activities.some(
+    (a) => a.name === LETHAL_COMPANY_NAME
+  );
 
-    if (currentTimeCard && !isPlaying) {
-      currentTimeCard.endTime = new Date();
+  if (currentTimeCard && !isPlaying) {
+    currentTimeCard.endTime = new Date();
 
-      const hours =
-        (currentTimeCard.endTime!.getTime() -
-          currentTimeCard.startTime.getTime()) /
-        3600000;
+    const hours =
+      (currentTimeCard.endTime!.getTime() -
+        currentTimeCard.startTime.getTime()) /
+      3600000;
 
-      let messageEnding = "";
-      if (hours < 2) {
-        messageEnding = "Pathetic.";
-      } else if (hours < 4) {
-        messageEnding = "Nice part time job.";
-      } else if (hours < 6) {
-        messageEnding = "Congrats on doing your job.";
-      } else {
-        messageEnding = "See you tomorrow.";
-      }
-
-      sendMessage(
-        `${newMember.user} has ended their shift after ${hours}. ${messageEnding}`
-      );
-      return;
+    let messageEnding = "";
+    if (hours < 2) {
+      messageEnding = "Pathetic.";
+    } else if (hours < 4) {
+      messageEnding = "Nice part time job.";
+    } else if (hours < 6) {
+      messageEnding = "Congrats on doing your job.";
+    } else {
+      messageEnding = "See you tomorrow.";
     }
 
-    if (!currentTimeCard && isPlaying) {
-      timeCards.push({
-        userId: newMember.userId,
-        startTime: new Date(),
-        endTime: null,
-      });
+    await sendMessage(
+      `${newMember.user} has ended their shift after ${hours}. ${messageEnding}`
+    );
+    return;
+  }
 
-      sendMessage(`${newMember.user} has started their shift.`);
-      return;
-    }
-  } catch (e) {
-    console.log({ e });
+  if (!currentTimeCard && isPlaying) {
+    timeCards.push({
+      userId: newMember.userId,
+      startTime: new Date(),
+      endTime: null,
+    });
+
+    await sendMessage(`${newMember.user} has started their shift.`);
+    return;
   }
 });
 
