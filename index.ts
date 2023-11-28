@@ -133,7 +133,7 @@ async function handlePresenceUpdate(
     }
 
     await sendMessage(
-      `${presence.user} has ended their shift after ${hours.toFixed(
+      `${presence.user} has clocked out after ${hours.toFixed(
         1
       )} hours. ${messageEnding}`
     );
@@ -149,7 +149,7 @@ async function handlePresenceUpdate(
       },
     });
 
-    await sendMessage(`${presence.user} has started their shift.`);
+    await sendMessage(`${presence.user} has clocked in.`);
     return;
   }
 }
