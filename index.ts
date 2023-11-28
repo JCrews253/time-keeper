@@ -80,47 +80,51 @@ client.once(Events.ClientReady, async (readyClient) => {
 });
 
 client.on(Events.PresenceUpdate, async (oldMember, newMember) => {
-  const currentTimeCard = timeCards.find(
-    (t) => t.userId === newMember.userId && t.endTime === null
-  );
-  const isPlaying = newMember.activities.some(
-    (a) => a.name === LETHAL_COMPANY_NAME
-  );
+  try {
+    const currentTimeCard = timeCards.find(
+      (t) => t.userId === newMember.userId && t.endTime === null
+    );
+    const isPlaying = newMember.activities.some(
+      (a) => a.name === LETHAL_COMPANY_NAME
+    );
 
-  if (currentTimeCard && !isPlaying) {
-    currentTimeCard.endTime = new Date();
+    if (currentTimeCard && !isPlaying) {
+      currentTimeCard.endTime = new Date();
 
-    const hours =
-      (currentTimeCard.endTime!.getTime() -
-        currentTimeCard.startTime.getTime()) /
-      3600000;
+      const hours =
+        (currentTimeCard.endTime!.getTime() -
+          currentTimeCard.startTime.getTime()) /
+        3600000;
 
-    let messageEnding = "";
-    if (hours < 2) {
-      messageEnding = "Pathetic.";
-    } else if (hours < 4) {
-      messageEnding = "Nice part time job.";
-    } else if (hours < 6) {
-      messageEnding = "Congrats on doing your job.";
-    } else {
-      messageEnding = "See you tomorrow.";
+      let messageEnding = "";
+      if (hours < 2) {
+        messageEnding = "Pathetic.";
+      } else if (hours < 4) {
+        messageEnding = "Nice part time job.";
+      } else if (hours < 6) {
+        messageEnding = "Congrats on doing your job.";
+      } else {
+        messageEnding = "See you tomorrow.";
+      }
+
+      sendMessage(
+        `${newMember.user} has ended their shift after ${hours}. ${messageEnding}`
+      );
+      return;
     }
 
-    sendMessage(
-      `${newMember.user} has ended their shift after ${hours}. ${messageEnding}`
-    );
-    return;
-  }
+    if (!currentTimeCard && isPlaying) {
+      timeCards.push({
+        userId: newMember.userId,
+        startTime: new Date(),
+        endTime: null,
+      });
 
-  if (!currentTimeCard && isPlaying) {
-    timeCards.push({
-      userId: newMember.userId,
-      startTime: new Date(),
-      endTime: null,
-    });
-
-    sendMessage(`${newMember.user} has started their shift.`);
-    return;
+      sendMessage(`${newMember.user} has started their shift.`);
+      return;
+    }
+  } catch (e) {
+    console.log({ e });
   }
 });
 
