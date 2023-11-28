@@ -80,12 +80,6 @@ client.once(Events.ClientReady, async (readyClient) => {
 });
 
 client.on(Events.PresenceUpdate, async (oldMember, newMember) => {
-  if (channel?.isTextBased()) {
-    const message = [newMember.userId, newMember.userId, newMember.userId]
-      .map((t) => `<@${t}>  \n`)
-      .join("");
-    channel.send(message);
-  }
   const currentTimeCard = timeCards.find(
     (t) => t.userId === newMember.userId && t.endTime === null
   );
