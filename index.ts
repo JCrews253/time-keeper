@@ -49,7 +49,9 @@ new CronJob(
     });
 
     const message = timeReports
-      .map((t) => `<@${t.userId}> worked ${t.hours} this week. \n`)
+      .map(
+        (t) => `<@${t.userId}> worked ${t.hours.toPrecision(1)} this week. \n`
+      )
       .join("");
     sendMessage(message);
   },
@@ -111,7 +113,9 @@ client.on(Events.PresenceUpdate, async (oldMember, newMember) => {
     }
 
     await sendMessage(
-      `${newMember.user} has ended their shift after ${hours}. ${messageEnding}`
+      `${newMember.user} has ended their shift after ${hours.toPrecision(
+        1
+      )}. ${messageEnding}`
     );
     return;
   }
