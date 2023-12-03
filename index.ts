@@ -155,13 +155,13 @@ async function handlePresenceUpdate(
 }
 
 function hoursToTitle(hours: number): string {
-  if (hours < 10) {
+  if (hours < 3) {
     return "Intern";
-  } else if (hours < 20) {
+  } else if (hours < 6) {
     return "Part-Time";
-  } else if (hours < 30) {
+  } else if (hours < 9) {
     return "Employee";
-  } else if (hours < 40) {
+  } else if (hours < 12) {
     return "Leader";
   } else {
     return "Boss";
