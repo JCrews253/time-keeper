@@ -17,7 +17,7 @@ const CHANNEL_ID = "293902684354904066";
 let channel: Channel | null;
 
 new CronJob(
-  "0 * * * * 0",
+  "0 0 0 * * 0",
   // "0 * * * * *",
   async function () {
     const oneWeekAgo = new Date();
