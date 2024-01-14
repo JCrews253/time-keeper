@@ -75,6 +75,18 @@ new CronJob(
   "America/Los_Angeles"
 );
 
+new CronJob(
+  "0 0 11 * * 0",
+  async function () {
+    sendMessage(
+      "Attention Lethal Company. This is Carol, 10 year associate, signing out. Goodnight."
+    );
+  },
+  null,
+  true,
+  "America/Los_Angeles"
+);
+
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
